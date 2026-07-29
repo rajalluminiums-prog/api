@@ -15,7 +15,7 @@ const TESTIMONIALS = [
   { 
     authorName: 'Priya Mehta', 
     authorRole: 'Interior Designer', 
-    content: 'I recommend Raj Alluminiums for all my projects. Their custom fabrication capabilities are outstanding, and they always deliver on time with perfect precision.', 
+    content: 'I recommend Raj Aluminiums for all my projects. Their custom fabrication capabilities are outstanding, and they always deliver on time with perfect precision.', 
     ratingEmoji: '😍',
     numericValue: 5,
     status: 'APPROVED',
@@ -24,7 +24,7 @@ const TESTIMONIALS = [
   { 
     authorName: 'Anil Gupta', 
     authorRole: 'Builder & Developer', 
-    content: 'We have been working with Raj Alluminiums for 8+ years across 50+ projects. Consistent quality, competitive pricing, and reliable after-sales support.', 
+    content: 'We have been working with Raj Aluminiums for 8+ years across 50+ projects. Consistent quality, competitive pricing, and reliable after-sales support.', 
     ratingEmoji: '🤩',
     numericValue: 5,
     status: 'APPROVED',

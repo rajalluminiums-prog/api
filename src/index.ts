@@ -5,6 +5,7 @@ import { logger } from 'hono/logger';
 import { connectDB } from './config/db';
 import { reviewsRouter } from './routes/reviews';
 import { ratesRouterExport } from './routes/rates';
+import { galleryRouter } from './routes/gallery';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -15,13 +16,14 @@ const app = new Hono();
 app.use('*', logger());
 app.use('*', cors({
   origin: '*', // For development. Adjust for production
-  allowHeaders: ['Content-Type'],
+  allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
 // Routes
 app.route('/api/reviews', reviewsRouter);
 app.route('/api/rates', ratesRouterExport);
+app.route('/api/gallery', galleryRouter);
 
 app.get('/', (c) => c.text('API is running.'));
 
