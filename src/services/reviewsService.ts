@@ -24,7 +24,7 @@ export const reviewsService = {
   },
 
   getFeedReviews: async () => {
-    const recentReviews = await Review.find({ status: 'APPROVED', numericValue: { $gte: 4 } })
+    const recentReviews = await Review.find({ status: 'APPROVED', numericValue: { $gte: 4 } } as any)
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();

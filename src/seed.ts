@@ -49,7 +49,7 @@ const seedDB = async () => {
     await Review.deleteMany({});
     
     console.log('Inserting seed reviews...');
-    await Review.insertMany(TESTIMONIALS);
+    await Review.insertMany(TESTIMONIALS as any);
     
     console.log('Database seeded successfully!');
     process.exit(0);
