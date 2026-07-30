@@ -75,8 +75,15 @@ ratesRouter.post('/calculate', async (c) => {
       return c.json({ success: false, error: 'Invalid dimensions' }, 400);
     }
 
+    // Normalize category to handle 'Window' vs 'Windows'
+    const singularCategory = category.endsWith('s') ? category.slice(0, -1) : category;
+    const pluralCategory = singularCategory + 's';
+
     // Find applicable pricing rule
-    const allCategoryRates = await ProductRate.find({ category, isActive: true });
+    const allCategoryRates = await ProductRate.find({ 
+      category: { $in: [category, singularCategory, pluralCategory] },
+      isActive: true 
+    });
     
     let matchedRate = null;
     
@@ -84,38 +91,60 @@ ratesRouter.post('/calculate', async (c) => {
        // 'Fix' usually just has a base price without attributes
        matchedRate = allCategoryRates[0]; 
     } else {
-       // Match attributes exactly
+       // Match attributes case-insensitively
        matchedRate = allCategoryRates.find(rate => {
-         // Convert mongoose Map to normal JS object
          const rateAttrs = rate.get('attributes') ? Object.fromEntries((rate as any).attributes) : {};
          const requestAttrs = attributes || {};
          
-         // Check if all requested attributes match the rate's attributes
-         for (const [key, val] of Object.entries(requestAttrs)) {
-           if (rateAttrs[key] !== val) return false;
+         // Normalize keys to lowercase for robust matching
+         const normRateAttrs: Record<string, string> = {};
+         for (const [k, v] of Object.entries(rateAttrs)) {
+             normRateAttrs[k.toLowerCase()] = String(v).toLowerCase();
          }
          
-         // Also check if rate has extra attributes that weren't requested (exact match requirement)
-         if (Object.keys(rateAttrs).length !== Object.keys(requestAttrs).length) return false;
-
+         const normReqAttrs: Record<string, string> = {};
+         for (const [k, v] of Object.entries(requestAttrs)) {
+             normReqAttrs[k.toLowerCase()] = String(v).toLowerCase();
+         }
+         
+         // Check if all requested attributes match the rate's attributes
+         for (const [key, val] of Object.entries(normReqAttrs)) {
+           if (normRateAttrs[key] !== val) return false;
+         }
+         
+         // Exact key count match to prevent partial matching
+         if (Object.keys(normRateAttrs).length !== Object.keys(normReqAttrs).length) return false;
+         
          return true;
        });
     }
 
     if (!matchedRate) {
-      return c.json({ success: false, error: 'No pricing configuration found for these exact specifications' }, 404);
+      return c.json({ success: false, error: 'No pricing configuration found for these exact specifications' });
     }
 
     const pricePerSqFt = matchedRate.pricePerSqFt;
-    // Standard rounding to 2 decimal places to avoid float cumulative errors
-    const estimatedTotal = Math.round((totalAreaSqFt * pricePerSqFt) * 100) / 100;
+    const minStandardSqft = matchedRate.minStandardSqft || 0;
+    const fixedPriceUnderStandard = matchedRate.fixedPriceUnderStandard || 0;
+
+    let estimatedTotal = 0;
+    let pricingType = 'Per SqFt';
+
+    if (minStandardSqft > 0 && totalAreaSqFt < minStandardSqft) {
+      estimatedTotal = fixedPriceUnderStandard;
+      pricingType = 'Fixed';
+    } else {
+      // Standard rounding to 2 decimal places to avoid float cumulative errors
+      estimatedTotal = Math.round((totalAreaSqFt * pricePerSqFt) * 100) / 100;
+    }
 
     return c.json({
       success: true,
       data: {
         areaSqFt: Math.round(totalAreaSqFt * 100) / 100,
         pricePerSqFt,
-        estimatedTotal
+        estimatedTotal,
+        pricingType
       }
     });
   } catch (error: any) {

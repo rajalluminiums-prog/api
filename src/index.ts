@@ -6,6 +6,13 @@ import { connectDB } from './config/db';
 import { reviewsRouter } from './routes/reviews';
 import { ratesRouterExport } from './routes/rates';
 import { galleryRouter } from './routes/gallery';
+import { customersRouter } from './routes/customers';
+import { dashboardRouter } from './routes/dashboard';
+import { worksRouter, customerWorksRouter } from './routes/works';
+import { serviceItemsRouter } from './routes/serviceItems';
+import { paymentsRouter } from './routes/payments';
+import { documentsRouter } from './routes/documents';
+import { attachmentsRouter } from './routes/attachments';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -24,6 +31,14 @@ app.use('*', cors({
 app.route('/api/reviews', reviewsRouter);
 app.route('/api/rates', ratesRouterExport);
 app.route('/api/gallery', galleryRouter);
+app.route('/api/customers', customersRouter);
+app.route('/api/customers', customerWorksRouter);
+app.route('/api/dashboard', dashboardRouter);
+app.route('/api/works', serviceItemsRouter);
+app.route('/api/works', paymentsRouter);
+app.route('/api/works', documentsRouter);
+app.route('/api/works', attachmentsRouter);
+app.route('/api/works', worksRouter);
 
 app.get('/', (c) => c.text('API is running.'));
 

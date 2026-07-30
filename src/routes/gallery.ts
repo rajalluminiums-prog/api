@@ -58,9 +58,10 @@ galleryRouter.get('/', async (c) => {
     const category = c.req.query('category') || 'All';
     const page = parseInt(c.req.query('page') || '1');
     const limit = parseInt(c.req.query('limit') || '9');
+    const isAdmin = c.req.query('admin') === 'true';
     const skip = (page - 1) * limit;
 
-    const query: any = { isVisible: true };
+    const query: any = isAdmin ? {} : { isVisible: true };
     if (category !== 'All') {
       query.category = category;
     }
@@ -112,7 +113,7 @@ galleryRouter.post('/analyze-image', authMiddleware, async (c) => {
           "content": [
             { 
               "type": "text", 
-              "text": "You are an expert aluminium fabricator. Analyze this image and return a strictly valid JSON object. Fields: 'title' (max 40 chars, concise descriptive name), 'category' (exactly one of: Windows, Doors, Partitions, Sliders, Profiles, Custom), 'type' (max 30 chars, specific style, e.g. 'Single Door', '3-Track Slider'), 'dims' (max 25 chars, key feature. DO NOT output negative phrases like 'No glass' or 'No visible glass'. Focus ONLY on the materials you DO see, e.g. 'Aluminium Frame', 'Solid Panel'), 'altText' (max 60 chars, concise SEO description. Again, DO NOT use negative phrases). Rely ONLY on visual evidence. Do not hallucinate. Return ONLY raw JSON, no markdown formatting or backticks." 
+              "text": "You are an expert aluminium fabricator. Analyze this image and return a SINGLE strictly valid JSON object representing the MOST PROMINENT aluminium/glass product in the image. DO NOT return an array. Focus EXCLUSIVELY on the aluminium and glass products installed. Completely IGNORE any background elements like the surrounding building structure, cars, trees, people, roads, or unrelated balcony railings. Fields: 'title' (max 40 chars, concise name of the aluminium/glass product ONLY), 'category' (exactly one of: Windows, Doors, Partitions, Sliders, Profiles, Custom), 'type' (max 30 chars, specific style, e.g. 'Awning Window', '3-Track Slider'), 'dims' (max 25 chars, key feature of the aluminium/glass. DO NOT output negative phrases like 'No visible glass'. Focus ONLY on the materials you DO see, e.g. 'Aluminium Frame'), 'altText' (max 60 chars, concise SEO description of the glass/aluminium product ONLY, completely ignoring background cars/buildings). Rely ONLY on the actual installed product. Do not hallucinate. Return ONLY raw JSON, no markdown formatting or backticks." 
             },
             {
               "type": "image_url",
@@ -130,8 +131,24 @@ galleryRouter.post('/analyze-image', authMiddleware, async (c) => {
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error('AI returned no content');
     
-    const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
-    const data = JSON.parse(jsonStr);
+    let data;
+    try {
+      // Extract either a JSON object {} or a JSON array []
+      const jsonMatch = content.match(/(\{|\[)[\s\S]*(\}|\])/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : content.replace(/```json/g, '').replace(/```/g, '').trim();
+      data = JSON.parse(jsonStr);
+      
+      // If the AI stubbornyl returned an array of products, just take the first/most prominent one
+      if (Array.isArray(data)) {
+        data = data[0];
+      }
+    } catch (parseError) {
+      console.error('AI output was not valid JSON. Raw output:', content);
+      return c.json({ 
+        success: false, 
+        message: 'The AI could not analyze the image clearly. Please try cropping out people or unrelated background elements and try again.' 
+      }, 422); // 422 Unprocessable Entity
+    }
 
     return c.json({ success: true, data });
   } catch (error: any) {
