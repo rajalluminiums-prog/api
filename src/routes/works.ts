@@ -7,6 +7,7 @@ import Payment from '../models/Payment';
 import Attachment from '../models/Attachment';
 import DocumentModel from '../models/Document';
 import Customer from '../models/Customer';
+import { Project } from '../models/Project';
 import { calculateItemPricing, recalculateWorkTotals } from '../utils/pricingEngine';
 
 export const worksRouter = new Hono();
@@ -427,6 +428,13 @@ worksRouter.delete('/:id', authMiddleware, async (c) => {
     await DocumentModel.deleteMany({ workId: id }).session(session);
     await Payment.deleteMany({ workId: id }).session(session);
     await ServiceItem.deleteMany({ workId: id }).session(session);
+    
+    // Unlink Gallery Projects instead of deleting them
+    await Project.updateMany(
+      { linkedWorkId: id },
+      { $unset: { linkedWorkId: 1, linkedServiceItemId: 1 } }
+    ).session(session);
+
     await Work.findByIdAndDelete(id).session(session);
 
     await session.commitTransaction();

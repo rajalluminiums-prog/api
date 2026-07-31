@@ -65,6 +65,10 @@ galleryRouter.get('/', async (c) => {
     if (category !== 'All') {
       query.category = category;
     }
+    const serviceItemId = c.req.query('serviceItemId');
+    if (serviceItemId) {
+      query.linkedServiceItemId = serviceItemId;
+    }
 
     const total = await Project.countDocuments(query);
     const projects = await Project.find(query)
@@ -168,6 +172,11 @@ galleryRouter.post('/upload', authMiddleware, async (c) => {
     const dims = body['dims'] as string;
     const altText = body['altText'] as string;
     const gridSpan = (body['gridSpan'] as string) || 'standard';
+    const lat = body['lat'] as string;
+    const lng = body['lng'] as string;
+    const accuracy = body['accuracy'] as string;
+    const linkedWorkId = body['linkedWorkId'] as string;
+    const linkedServiceItemId = body['linkedServiceItemId'] as string;
 
     if (!file || !title || !category || !type || !dims || !altText) {
       return c.json({ success: false, message: 'Missing required fields' }, 400);
@@ -198,9 +207,22 @@ galleryRouter.post('/upload', authMiddleware, async (c) => {
 
     const imageUrl = `https://${bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 
-    const project = await Project.create({
+    const projectData: any = {
       title, category, type, dims, altText, gridSpan: gridSpan as any, s3Key, imageUrl
-    });
+    };
+
+    if (lat && lng) {
+      projectData.location = {
+        type: 'Point',
+        coordinates: [parseFloat(lng), parseFloat(lat)],
+        accuracy: accuracy ? parseFloat(accuracy) : undefined,
+        capturedAt: new Date()
+      };
+    }
+    if (linkedWorkId) projectData.linkedWorkId = linkedWorkId;
+    if (linkedServiceItemId) projectData.linkedServiceItemId = linkedServiceItemId;
+
+    const project = await Project.create(projectData);
 
     return c.json({ success: true, data: project });
   } catch (error: any) {
@@ -262,6 +284,20 @@ galleryRouter.put('/:id', authMiddleware, async (c) => {
       if (body['dims']) updateData.dims = body['dims'];
       if (body['altText']) updateData.altText = body['altText'];
       if (body['gridSpan']) updateData.gridSpan = body['gridSpan'];
+      if (body['linkedWorkId']) updateData.linkedWorkId = body['linkedWorkId'];
+      if (body['linkedServiceItemId']) updateData.linkedServiceItemId = body['linkedServiceItemId'];
+      
+      const lat = body['lat'] as string;
+      const lng = body['lng'] as string;
+      const accuracy = body['accuracy'] as string;
+      if (lat && lng) {
+        updateData.location = {
+          type: 'Point',
+          coordinates: [parseFloat(lng), parseFloat(lat)],
+          accuracy: accuracy ? parseFloat(accuracy) : undefined,
+          capturedAt: new Date()
+        };
+      }
       
       const file = body['file'] as File;
       if (file && file.size > 0) {
